@@ -22,7 +22,7 @@ This fork includes all the powerful core features from the original, plus:
 *   **Portable Executable:** Download and run the application directly without needing to install Python or any dependencies (Windows `.exe`, Linux binary).
 *   **Easy URL Pasting:** A convenient "Paste" button to quickly insert a Bunkr URL from your clipboard.
 *   **File Browser:** A "Browse" button to easily select your URL list file when in "Batch from file" mode.
-*   **Settings Tab:** Tweak the save folder, max concurrent downloads, retries, and include/exclude filters without touching the command line.
+*   **Settings Tab:** Tweak the save folder, max concurrent downloads, min image height, retries, and include/exclude filters without touching the command line.
 *   **Stop Button:** Cancel a batch mid-run — the current URL finishes, the rest are skipped.
 *   **Detailed CLI Window (optional):** Toggle in Settings to spawn each download in its own console for the full Rich progress bars.
 *   **Automatic Folder Opening:** Once your download is complete, the folder containing the files will automatically open.
@@ -122,7 +122,7 @@ python3 downloader.py <bunkr_url>     # Linux/macOS
 
 ### Selective & Batch Downloads
 
-All the original flags like `--ignore`, `--include`, and batch downloading via `URLs.txt` are still supported, along with `--custom-path`, `--no-download-folder`, `--no-album-folder`, `--clean-name`, `--max-retries`, `--connections`, `--rate-limit`, `--dry-run`, `--disable-disk-check`, and `--version`.
+All the original flags like `--ignore`, `--include`, and batch downloading via `URLs.txt` are still supported, along with `--custom-path`, `--no-download-folder`, `--no-album-folder`, `--clean-name`, `--max-retries`, `--connections`, `--rate-limit`, `--min-image-height`, `--dry-run`, `--disable-disk-check`, and `--version`.
  
 For more details, please refer to the [Lysagxra README](https://github.com/Lysagxra/BunkrDownloader/blob/main/README.md).
 

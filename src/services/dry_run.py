@@ -22,6 +22,7 @@ from src.misc.file_utils import (
     reserve_unique_filename,
     truncate_filename,
 )
+from src.misc.image_utils import fetch_image_height, is_image
 from src.misc.general_utils import fetch_page
 from src.models import AlbumInfo, ResolveContext
 
@@ -37,6 +38,7 @@ _STATUS_LABELS: dict[str, tuple[str, str]] = {
     "already_downloaded": ("Already downloaded", "dim"),
     "filtered_ignore": ("Filtered (ignore list)", "yellow"),
     "filtered_include": ("Filtered (include list)", "yellow"),
+    "filtered_height": ("Filtered (below min height)", "yellow"),
     "unresolved": ("Could not resolve URL", "red"),
     "fetch_failed": ("Failed to fetch page", "red"),
 }
@@ -120,6 +122,12 @@ async def _resolve_item(item_page: str, context: ResolveContext) -> dict:
         if filter_status:
             return {"filename": filename, "size": None, "status": filter_status}
 
+        min_height = getattr(context.session_info.args, "min_image_height", 0) or 0
+        if min_height > 0 and is_image(filename):
+            height = await asyncio.to_thread(fetch_image_height, download_link)
+            if height is not None and height < min_height:
+                return {"filename": filename, "size": None, "status": "filtered_height"}
+
         final_path = (
             Path(context.session_info.download_path) / truncate_filename(filename)
         )
@@ -200,7 +208,11 @@ def _print_dry_run_summary(
     """Print the summary of a dry-run operation."""
     would_download = counts.get("would_download", 0)
     already_downloaded = counts.get("already_downloaded", 0)
-    filtered = counts.get("filtered_ignore", 0) + counts.get("filtered_include", 0)
+    filtered = (
+        counts.get("filtered_ignore", 0)
+        + counts.get("filtered_include", 0)
+        + counts.get("filtered_height", 0)
+    )
     unresolved = counts.get("unresolved", 0) + counts.get("fetch_failed", 0)
 
     console.print(

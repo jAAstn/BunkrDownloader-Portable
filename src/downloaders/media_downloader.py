@@ -24,6 +24,7 @@ from src.misc.file_utils import (
     truncate_filename,
     write_on_session_log,
 )
+from src.misc.image_utils import fetch_image_height, is_image
 from src.models import DownloadConfig, DownloadInfo, RetryConfig, SessionInfo
 
 from .download_utils import (
@@ -228,6 +229,17 @@ class MediaDownloader:
             return log_and_skip_event(
                 f"No included words found for {self.download_info.filename}.",
             )
+
+        # Check if an image is shorter than the configured minimum height
+        min_height = getattr(self.session_info.args, "min_image_height", 0) or 0
+        if min_height > 0 and is_image(self.download_info.filename):
+            height = fetch_image_height(self.download_info.download_link)
+            if height is not None and height < min_height:
+                self.live_manager.update_summary(SkippedReason.MIN_IMAGE_HEIGHT)
+                return log_and_skip_event(
+                    f"{self.download_info.filename} is {height}px tall, below the "
+                    f"{min_height}px minimum.",
+                )
 
         # Check if the subdomain is marked as offline
         if (

@@ -49,3 +49,6 @@ connections = 4
 
 # Only download files whose names contain at least one of these substrings.
 # include = ["mp4", "mkv"]
+
+# Skip images (png/jpg/jpeg/gif/webp/bmp) shorter than this many pixels.
+# min_image_height = 900

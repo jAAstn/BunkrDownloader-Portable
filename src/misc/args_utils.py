@@ -85,6 +85,16 @@ def add_common_arguments(parser: ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--min-image-height",
+        type=int,
+        default=None,
+        metavar="PX",
+        help=(
+            "Skip images (png/jpg/jpeg/gif/webp/bmp) shorter than this many "
+            "pixels (default: 0, disabled)."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         default=None,

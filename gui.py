@@ -59,6 +59,7 @@ DEFAULT_SETTINGS = {
     "max_retries": MAX_RETRIES,
     "include": "",
     "exclude": "",
+    "min_image_height": 0,
     "no_disk_check": False,
     "no_download_folder": False,
     "external_console": False,
@@ -206,6 +207,8 @@ class DownloaderUI(ctk.CTk):
         self._settings = load_settings()
         self._settings["max_workers"] = _clamp_int(self._settings["max_workers"], 1, 5, MAX_WORKERS)
         self._settings["max_retries"] = _clamp_int(self._settings["max_retries"], 1, 10, MAX_RETRIES)
+        self._settings["min_image_height"] = _clamp_int(
+            self._settings["min_image_height"], 0, 30000, 0)
         self.dest_var = ctk.StringVar(value=self._settings["download_folder"])
 
         # Tab view
@@ -393,6 +396,19 @@ class DownloaderUI(ctk.CTk):
         self.workers_slider.pack(side="left", fill="x", expand=True, padx=(0, 8))
         row += 1
 
+        ctk.CTkLabel(tab, text="Min image height (px):", anchor="w").grid(
+            row=row, column=0, padx=(4, 8), pady=4, sticky="w")
+        min_height_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        min_height_frame.grid(row=row, column=1, padx=(0, 4), pady=4, sticky="ew")
+        self.settings_min_height = ctk.CTkEntry(min_height_frame, width=90)
+        self.settings_min_height.pack(side="left")
+        self.settings_min_height.insert(0, str(self._settings["min_image_height"]))
+        ctk.CTkLabel(min_height_frame,
+                     text="skip smaller images (png/jpg/jpeg/gif/webp/bmp)",
+                     text_color="gray50",
+                     font=ctk.CTkFont(size=11)).pack(side="left", padx=(8, 0))
+        row += 1
+
         # ── File filters ──────────────────────────────────────────────────────
         section("File filters", row)
         row += 1
@@ -562,6 +578,13 @@ class DownloaderUI(ctk.CTk):
     def _on_retries_change(self, value):
         self.retries_label.configure(text=str(int(value)))
 
+    def _min_image_height(self):
+        """Read the min image height entry, tolerating blank or non-numeric text."""
+        try:
+            return max(0, int(self.settings_min_height.get().strip()))
+        except (ValueError, TypeError):
+            return 0
+
     def _collect_settings(self):
         return {
             "download_folder": self.dest_var.get().strip(),
@@ -569,6 +592,7 @@ class DownloaderUI(ctk.CTk):
             "max_retries": int(round(self.retries_slider.get())),
             "include": self.settings_include.get().strip(),
             "exclude": self.settings_exclude.get().strip(),
+            "min_image_height": self._min_image_height(),
             "no_disk_check": bool(self.opt_no_disk_check.get()),
             "no_download_folder": bool(self.opt_no_dl_folder.get()),
             "external_console": bool(self.opt_external_console.get()),
@@ -695,6 +719,10 @@ class DownloaderUI(ctk.CTk):
             args += ["--include"] + include
         if exclude:
             args += ["--ignore"] + exclude
+
+        min_height = self._min_image_height()
+        if min_height > 0:
+            args += ["--min-image-height", str(min_height)]
 
         args += ["--max-retries", str(int(self.retries_slider.get()))]
         if self.opt_no_disk_check.get():

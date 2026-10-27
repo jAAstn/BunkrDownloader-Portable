@@ -169,6 +169,9 @@ _CONFIG_FIELDS: dict[str, tuple[object, object]] = {
     "rate_limit": (
         None, lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
     ),
+    "min_image_height": (
+        0, lambda v: isinstance(v, int) and not isinstance(v, bool),
+    ),
     "dry_run": (False, lambda v: isinstance(v, bool)),
     "max_concurrent_urls": (
         1, lambda v: isinstance(v, int) and not isinstance(v, bool),

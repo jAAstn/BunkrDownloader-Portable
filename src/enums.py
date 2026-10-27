@@ -55,6 +55,7 @@ class SkippedReason(IntEnum):
     ALREADY_DOWNLOADED = auto()
     IGNORE_LIST = auto()
     INCLUDE_LIST = auto()
+    MIN_IMAGE_HEIGHT = auto()
     DOMAIN_OFFLINE = auto()
     SERVICE_UNAVAILABLE = auto()
 
