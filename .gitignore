@@ -166,3 +166,4 @@ cython_debug/
 
 # WiX Toolset build artifacts
 *.wixpdb
+/dist/Alte Version
