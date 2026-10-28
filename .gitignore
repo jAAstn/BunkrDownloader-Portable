@@ -11,7 +11,8 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-/dist/Alte Version
+dist/Alte Version/
+/dist/Alte Version/
 downloads/
 eggs/
 .eggs/
@@ -166,5 +167,3 @@ cython_debug/
 
 # WiX Toolset build artifacts
 *.wixpdb
-/dist/Alte Version
-/dist/Alte Version/
