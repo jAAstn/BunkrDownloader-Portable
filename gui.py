@@ -19,7 +19,7 @@ import customtkinter as ctk
 from src.config import DOWNLOAD_FOLDER, MAX_RETRIES, MAX_WORKERS
 from src.version import __version__ as BACKEND_VERSION
 
-GUI_VERSION = "2026.10.23"
+GUI_VERSION = "2026.10.28"
 GITHUB_URL = "https://github.com/ZeroHackz/BunkrDownloader"
 
 # When running from a PyInstaller bundle, sys.executable is the GUI's own .exe
@@ -55,6 +55,7 @@ SETTINGS_FILE = "settings.json"
 
 DEFAULT_SETTINGS = {
     "download_folder": "",
+    "url_list": "",
     "max_workers": MAX_WORKERS,
     "max_retries": MAX_RETRIES,
     "include": "",
@@ -194,6 +195,7 @@ class DownloaderUI(ctk.CTk):
         self._active_lock = threading.Lock()
         self._url_index = 0               # 1-based URL index in the current batch
         self._url_total = 0               # Total URLs in the current batch
+        self._url_failed = False          # Current URL hit at least one failed file
 
         self.after(200, self._set_window_icon)
 
@@ -282,18 +284,24 @@ class DownloaderUI(ctk.CTk):
                       command=self._paste_url).grid(
             row=1, column=1, padx=(0, 12), pady=(0, 10))
 
-        # Batch file input frame
+        # Batch URL queue frame — paste URLs directly (one per line) or
+        # click Browse to drop a .txt file path into the queue.
         self.file_frame = ctk.CTkFrame(tab)
         self.file_frame.grid_columnconfigure(0, weight=1)
+        self.file_frame.grid_rowconfigure(1, weight=1)
         ctk.CTkLabel(self.file_frame,
-                     text="URL list file (.txt — one URL per line):").grid(
+                     text="URL queue (one URL per line — or click Browse to load a .txt):").grid(
             row=0, column=0, columnspan=2, padx=12, pady=(10, 2), sticky="w")
-        self.file_entry = ctk.CTkEntry(
-            self.file_frame, placeholder_text="Click Browse to select a .txt file…")
-        self.file_entry.grid(row=1, column=0, padx=(12, 6), pady=(0, 10), sticky="ew")
+        self.url_box = ctk.CTkTextbox(
+            self.file_frame, height=110, wrap="none",
+            font=ctk.CTkFont(family="Consolas", size=12))
+        self.url_box.grid(row=1, column=0, padx=(12, 6), pady=(0, 10), sticky="nsew")
         ctk.CTkButton(self.file_frame, text="Browse", width=80,
                       command=self._browse_input_file).grid(
-            row=1, column=1, padx=(0, 12), pady=(0, 10))
+            row=1, column=1, padx=(0, 12), pady=(0, 10), sticky="ne")
+        saved_urls = str(self._settings.get("url_list") or "")
+        if saved_urls.strip():
+            self.url_box.insert("1.0", saved_urls)
 
         # Download destination
         dest_frame = ctk.CTkFrame(tab)
@@ -494,7 +502,8 @@ class DownloaderUI(ctk.CTk):
 
         ctk.CTkLabel(tab,
                      text="A clean GUI for downloading Bunkr albums and files.\n"
-                          "Supports both single URLs and batch downloads from a text file.",
+                          "Supports single URLs and batch downloads from a pasted\n"
+                          "URL list or a text file.",
                      wraplength=480, justify="center").grid(
             row=3, column=0, pady=(0, 28))
 
@@ -528,9 +537,12 @@ class DownloaderUI(ctk.CTk):
         if self.mode.get() == "url":
             self.url_frame.grid(row=1, column=0, padx=0, pady=(0, 10), sticky="ew")
             self.file_frame.grid_forget()
+            self.tab_dl.grid_rowconfigure(1, weight=0)
         else:
             self.file_frame.grid(row=1, column=0, padx=0, pady=(0, 10), sticky="ew")
             self.url_frame.grid_forget()
+            # Let the URL queue grow with the window alongside the log.
+            self.tab_dl.grid_rowconfigure(1, weight=1)
 
     def _paste_url(self):
         try:
@@ -543,9 +555,66 @@ class DownloaderUI(ctk.CTk):
         path = filedialog.askopenfilename(
             title="Select URL list file",
             filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
-        if path:
-            self.file_entry.delete(0, "end")
-            self.file_entry.insert(0, path)
+        if not path:
+            return
+        lines = self._queue_lines()
+        if path in lines:
+            return  # already queued
+        if lines:
+            self.url_box.insert("end", "\n" + path)
+        else:
+            self.url_box.insert("1.0", path)
+        self.url_box.see("end")
+
+    def _queue_lines(self):
+        """Non-empty, stripped lines of the URL queue textbox."""
+        text = self.url_box.get("1.0", "end")
+        return [line.strip() for line in text.splitlines() if line.strip()]
+
+    def _set_queue_text(self, text):
+        """Replace the whole URL queue textbox content."""
+        self.url_box.delete("1.0", "end")
+        if text:
+            self.url_box.insert("1.0", text)
+
+    def _expand_queue(self, lines):
+        """Turn queue lines into a plain URL list.
+
+        A line that points at an existing file is read as a .txt URL list and
+        replaced inside the box by its URLs (so the box always *is* the queue);
+        every other line is used as a URL directly.
+        """
+        urls = []
+        expanded = False
+        for line in lines:
+            if os.path.isfile(line):
+                expanded = True
+                try:
+                    with open(line, "r", encoding="utf-8") as f:
+                        file_urls = [u.strip() for u in f if u.strip()]
+                except (OSError, UnicodeError) as e:
+                    self._log(f"Could not read file {line}: {e}\n", tag="fail")
+                    continue
+                if not file_urls:
+                    self._log(f"[skip] {line} contains no URLs.\n", tag="skip")
+                    continue
+                self._log(f"[loaded] {len(file_urls)} URL(s) from {line}\n", tag="dim")
+                urls += file_urls
+            elif line.lower().endswith(".txt"):
+                self._log(f"[FAIL] URL list file not found: {line}\n", tag="fail")
+            else:
+                urls.append(line)
+        if expanded and urls:
+            self._set_queue_text("\n".join(urls))
+        return urls
+
+    def _remove_queue_url(self, url):
+        """Delete the first queue line matching `url` — main thread only."""
+        lines = self.url_box.get("1.0", "end").splitlines()
+        for idx, line in enumerate(lines):
+            if line.strip() == url:
+                self.url_box.delete(f"{idx + 1}.0", f"{idx + 2}.0")
+                return
 
     def _browse_dest_dir(self):
         d = filedialog.askdirectory(title="Select download folder")
@@ -588,6 +657,7 @@ class DownloaderUI(ctk.CTk):
     def _collect_settings(self):
         return {
             "download_folder": self.dest_var.get().strip(),
+            "url_list": self.url_box.get("1.0", "end").rstrip("\n"),
             "max_workers": int(round(self.workers_slider.get())),
             "max_retries": int(round(self.retries_slider.get())),
             "include": self.settings_include.get().strip(),
@@ -650,18 +720,14 @@ class DownloaderUI(ctk.CTk):
                 return
             urls = [url]
         else:
-            file_path = self.file_entry.get().strip()
-            if not file_path:
-                self._log("Please select a .txt file containing URLs.\n")
+            lines = self._queue_lines()
+            if not lines:
+                self._log("Enter at least one URL (one per line) or click Browse "
+                          "to select a .txt file.\n")
                 return
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    urls = [line.strip() for line in f if line.strip()]
-                if not urls:
-                    self._log("The selected file is empty or contains no valid URLs.\n")
-                    return
-            except (IOError, OSError) as e:
-                self._log(f"Could not read file: {e}\n")
+            urls = self._expand_queue(lines)
+            if not urls:
+                self._log("No valid URLs found.\n")
                 return
 
         self._stop_requested = False
@@ -672,7 +738,7 @@ class DownloaderUI(ctk.CTk):
         self._url_total = len(urls)
         self.status_var.set(f"Starting… ({len(urls)} URL{'s' if len(urls) > 1 else ''})")
         self._worker_thread = threading.Thread(
-            target=self._run_batch, args=(urls,), daemon=True)
+            target=self._run_batch, args=(urls, mode == "file"), daemon=True)
         self._worker_thread.start()
 
     def _pause(self):
@@ -774,6 +840,7 @@ class DownloaderUI(ctk.CTk):
             lower = line.lower()
             if "download failed" in lower or "error" in lower or "exceeded" in lower:
                 tag = "fail"
+                self._url_failed = True
             elif "skipped" in lower or "already been downloaded" in lower:
                 tag = "skip"
             elif "completed" in lower or "success" in lower:
@@ -795,7 +862,7 @@ class DownloaderUI(ctk.CTk):
         script = os.path.abspath(sys.argv[0]) if sys.argv and sys.argv[0] else "gui.py"
         return [_child_python_exe(), script, sentinel, *extra_args]
 
-    def _run_batch(self, urls):
+    def _run_batch(self, urls, remove_from_queue=False):
         external = self.opt_external_console.get()
         total = len(urls)
         completed = 0
@@ -824,6 +891,7 @@ class DownloaderUI(ctk.CTk):
             self._log(f"{'─' * 60}\n\n", tag="header")
 
             self._force_stop = False
+            self._url_failed = False
             try:
                 if external:
                     # Detached console with the full Rich UI (progress bars +
@@ -869,6 +937,13 @@ class DownloaderUI(ctk.CTk):
                     self._log(f"\n  [STOPPED]  {url}\n", tag="fail")
                 elif rc == 0:
                     completed += 1
+                    if remove_from_queue and not self._url_failed:
+                        # Fully downloaded — drop it from the queue right away
+                        # so the next URL starts and no run repeats this one.
+                        self.after(0, self._remove_queue_url, url)
+                    elif remove_from_queue:
+                        self._log("  (kept in the queue — some files failed)\n",
+                                  tag="dim")
                     self._log(f"\n  [OK]  Finished: {url}\n", tag="ok")
                 else:
                     failed += 1

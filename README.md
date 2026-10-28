@@ -17,11 +17,12 @@ This version focuses on providing an user-friendly **Graphical User Interface (G
 
 This fork includes all the powerful core features from the original, plus:
 
-*   **Dual Download Modes:** Easily switch between downloading a single URL or batch downloading from a `.txt` file using a simple toggle.
+*   **Dual Download Modes:** Easily switch between downloading a single URL and a batch queue of many URLs using a simple toggle.
 *   **Graphical User Interface (GUI):** A simple and intuitive interface for downloading. No command line needed!
 *   **Portable Executable:** Download and run the application directly without needing to install Python or any dependencies (Windows `.exe`, Linux binary).
 *   **Easy URL Pasting:** A convenient "Paste" button to quickly insert a Bunkr URL from your clipboard.
-*   **File Browser:** A "Browse" button to easily select your URL list file when in "Batch from file" mode.
+*   **File Browser:** A "Browse" button to add an existing URL list file to the queue when in "Batch from file" mode.
+*   **URL Queue:** Paste as many URLs as you like directly into the queue (one per line) — no `.txt` required. The queue is written to `settings.json` on exit and restored on the next start, and every URL leaves the queue as soon as it has finished downloading.
 *   **Settings Tab:** Tweak the save folder, max concurrent downloads, min image height, retries, and include/exclude filters without touching the command line.
 *   **Stop Button:** Cancel a batch mid-run — the current URL finishes, the rest are skipped.
 *   **Detailed CLI Window (optional):** Toggle in Settings to spawn each download in its own console for the full Rich progress bars.
@@ -44,7 +45,7 @@ This fork includes all the powerful core features from the original, plus:
 3.  Run the application.
 4.  **Choose your download mode:**
     *   **For a single link:** Leave it on "Single URL", paste your Bunkr URL, and click **Download**.
-    *   **For multiple links:** Select "Batch from file", click **Browse** to select your `.txt` file, and then click **Download**.
+    *   **For multiple links:** Select "Batch from file", paste your URLs into the queue (one per line) — or click **Browse** to load them from a `.txt` file — and then click **Download**. Each finished URL is removed from the queue automatically.
 5.  That's it!
 
 ## 🛠️ For Developers (Building from Source)
