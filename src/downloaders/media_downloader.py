@@ -17,7 +17,11 @@ from requests import RequestException
 
 from src.config import DOWNLOAD_HEADERS
 from src.enums import CompletedReason, FailedReason, HTTPStatus, SkippedReason
-from src.misc.bunkr_utils import mark_subdomain_as_offline, subdomain_is_offline
+from src.misc.bunkr_utils import (
+    mark_subdomain_as_offline,
+    note_subdomain_success,
+    subdomain_is_offline,
+)
 from src.misc.file_utils import (
     matches_ignore_list,
     matches_include_list,
@@ -179,6 +183,13 @@ class MediaDownloader:
             )
             failed_download = True
 
+        # A file made it through: the subdomain is demonstrably alive again.
+        if not failed_download:
+            note_subdomain_success(
+                self.session_info.bunkr_status,
+                self.download_info.download_link,
+            )
+
         # Handle failed download after retries
         if failed_download:
             return self._handle_failed_download(is_final_attempt=is_final_attempt)
@@ -284,12 +295,19 @@ class MediaDownloader:
             HTTPStatus.SERVICE_UNAVAILABLE,
         )
 
-        # Mark the subdomain as offline and exit the loop
+        # A server-down result (no response at all, 521 or 503) is often just a
+        # blip: failures are counted per subdomain and only give up on the whole
+        # subdomain once it failed several times in a row.
         if is_server_down:
             marked_subdomain = mark_subdomain_as_offline(
                 self.session_info.bunkr_status,
                 self.download_info.download_link,
             )
+            if marked_subdomain is None:
+                # Still transient: let the normal backoff decide whether to try
+                # again instead of poisoning the subdomain for every other file.
+                return self._retry_with_backoff(attempt, event="No response")
+
             self.live_manager.update_log(
                 event="No response",
                 details=f"Subdomain '{marked_subdomain}' has been marked as offline.",
