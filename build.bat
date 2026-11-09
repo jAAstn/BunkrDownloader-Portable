@@ -22,6 +22,14 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
+echo Checking for backend updates...
+python update_backend.py
+if errorlevel 1 (
+    echo.
+    echo WARNING: Backend update was not applied - building with the current backend.
+    echo.
+)
+
 echo Installing PyInstaller...
 pip install pyinstaller
 if %ERRORLEVEL% NEQ 0 (
