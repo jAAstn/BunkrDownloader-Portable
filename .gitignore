@@ -167,3 +167,7 @@ cython_debug/
 
 # WiX Toolset build artifacts
 *.wixpdb
+
+# BunkrDownloader session and diagnostic output
+session/
+logs/

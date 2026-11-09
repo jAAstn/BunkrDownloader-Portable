@@ -52,3 +52,9 @@ connections = 4
 
 # Skip images (png/jpg/jpeg/gif/webp/bmp) shorter than this many pixels.
 # min_image_height = 900
+
+# Optional identifier for structured session logs under session/<id>.log.
+# session_id = "my-album"
+
+# Mirror UI events to a timestamped diagnostic file under logs/.
+verbose = false
