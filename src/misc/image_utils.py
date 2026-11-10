@@ -14,6 +14,7 @@ import struct
 from pathlib import Path
 
 import requests
+import urllib3
 
 from src.config import DOWNLOAD_HEADERS
 
@@ -53,7 +54,13 @@ def fetch_image_height(url: str) -> int | None:
             response.raise_for_status()
             data = response.raw.read(HEADER_BYTES)
 
-    except (requests.RequestException, OSError):
+    except (
+        requests.RequestException,
+        urllib3.exceptions.HTTPError,
+        OSError,
+    ):
+        # urllib3 raises its own timeout errors for raw stream reads;
+        # requests only translates them for iter_content()/content.
         return None
 
     return image_height(data)
